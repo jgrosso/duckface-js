@@ -18,5 +18,8 @@
   "bugs": {
     "url": "https://github.com/jgrosso/duckface-js/issues"
   },
-  "homepage": "https://github.com/jgrosso/duckface-js#readme"
+  "homepage": "https://github.com/jgrosso/duckface-js#readme",
+  "dependencies": {
+    "acorn": "latest"
+  }
 }

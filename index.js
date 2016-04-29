@@ -2,7 +2,8 @@
 
 const Acorn = require('acorn');
 
+const source = 'var x = 42; // Test'
 let comments = [];
-Acorn.parse('var x = 42; // Test', {
+let ast = Acorn.parse(source, {
     onComment: comments
 });
