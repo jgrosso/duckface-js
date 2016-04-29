@@ -1,0 +1,22 @@
+{
+  "name": "duckface.js",
+  "version": "1.0.0",
+  "description": "Add safety to JavaScript without losing expressiveness.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/jgrosso/duckface-js.git"
+  },
+  "keywords": [
+    "validate"
+  ],
+  "author": "Joshua Grosso <jgrosso1@asu.edu> (https://programmerspursuit.wordpress.com/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jgrosso/duckface-js/issues"
+  },
+  "homepage": "https://github.com/jgrosso/duckface-js#readme"
+}
