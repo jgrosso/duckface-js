@@ -1,76 +1,163 @@
 'use strict';
 
 const Acorn = require('acorn');
+const _     = require('lodash');
 
-let unimplemented = () => {
-    //throw new Error('TODO');
+const unimplemented = () => {
+    throw new Error('TODO');
 };
 
-let assignments = {};
-
-let properties = node => {
+const parseTopLevelStatement = node => {
+    let result = []; 
     switch (node.type) {
-    case 'Identifier':
-        return Object.create(assignments[node.name]);
-    case 'Literal':
-        return node.value;
+    case 'FunctionDeclaration':
+        return findCallExpressions(node.body);
+    case 'FunctionExpression':
+        return findCallExpressions(node.body);
+    case 'VariableDeclaration':
+        node.declarations.forEach(declaration => {
+            result = result.concat(parseTopLevelStatement(declaration.init));
+        });
+        return result;
     default:
+        debugger;
         unimplemented();
     }
 };
 
-/*let isDefined = node => {
-    let isUndefined = x => typeof x === 'undefined';
-
-    switch (node.type) {
-    case 'Identifier':
-        return !isUndefined(assignments[node.name]);
-    case 'Literal':
-        break;
-    case 'BinaryExpression':
-        return isDefined(node.left) && isDefined(node.right);
-    default:
-        unimplemented();
-    }
-};*/
-
-let handleVariableDeclaration = statement => {
-    let handleIdentifier = declaration => {
-        if (declaration.init) {
-            assignments[declaration.id.name] = properties(declaration.init);
-        }
-    };
+const findCallExpressions = node => {
+    var result = [];
     
-    let declarations = statement.declarations;
-    for (let i = 0; i < declarations.length; ++i) {
-        let declaration = declarations[i];
-        
-        switch (declaration.id.type) {
-        case 'Identifier':
-            handleIdentifier(declaration);
-            break;
-        default:
-            unimplemented();
-        }
+    switch (node.type) {
+    case 'BlockStatement':
+        node.body.forEach(statement => {
+            result = result.concat(findCallExpressions(statement));
+        });
+        return result;
+    case 'ReturnStatement':
+        return findCallExpressions(node.argument);
+    case 'VariableDeclaration':
+        node.declarations.forEach(declaration => {
+            result = result.concat(findCallExpressions(declaration.init));
+        });
+        return result;
+    case 'CallExpression':
+        return [node];
+    default:
+        debugger;
+        unimplemented();
+    }
+    
+    return result;
+};
+
+let findName = node => {
+    switch (node.type) {
+    case 'FunctionDeclaration':
+        return node.id.name;
+    case 'VariableDeclaration':
+        return _.head(node.declarations).id.name;
+    default:
+        debugger;
+        unimplemented();
     }
 };
 
-const source = 'var x = 4; var y = x * 2; // Test';
+let usedInterfaceSuffixes = [];
+
+const convertPropertiesToInterface = properties => {
+    let randomSuffix;
+    do {
+        randomSuffix = Math.floor(Math.random() * 1000000) + 1000;
+    } while (_.includes(usedInterfaceSuffixes, randomSuffix));
+    let randomInterfaceName = `Interface${randomSuffix}`;
+    
+    let interfaceProperties = [];
+    properties.forEach(property => {
+        interfaceProperties.push(`${property}: any`);
+    });
+    let interfaceBody = _.join(interfaceProperties, ',\n');
+    
+    return `
+    interface ${randomInterfaceName} {
+        ${interfaceBody}
+    }
+    `;
+};
+
+let properties = [];
+
+const addProperty = (scope, objectName, property) => {
+    if (!_.includes(properties, scope)) {
+        properties.push({
+            name: findName(scope),
+            node: scope,
+            objects: []
+        });
+    }
+    
+    let objects = _.find(properties, x => x.node == scope).objects;
+    if (!_.includes(objects, objectName)) {
+        objects.push({
+            name: objectName,
+            properties: []
+        });
+    }
+    
+    let objectProperties = _.find(objects, x => x.name == objectName).properties;
+    if (!_.includes(objectProperties, property.name)) {
+        objectProperties.push(property.name);
+    }
+};
+
+const source = `
+function x(test) {
+    return test.toString();
+}
+var x = function(test) {
+    return test.toString2();
+}
+`;
 let comments = [];
 let ast = Acorn.parse(source, {
     onComment: comments
 }).body;
 
-for (let i = 0; i < ast.length; ++i) {
-    let statement = ast[i];
-    
-    switch (statement.type) {
-    case 'VariableDeclaration':
-        handleVariableDeclaration(statement);
-        break;
-    default:
-        unimplemented();
-    }
-}
+let callExpressions = [];
+ast.forEach(node => {
+    callExpressions.push({
+        node,
+        callExpressions: parseTopLevelStatement(node)
+    });
+});
 
-// EOF
+callExpressions.forEach(node => {
+    node.callExpressions.forEach(callExpression => {
+        switch (callExpression.callee.type) {
+        case 'MemberExpression':
+            switch (callExpression.callee.object.type) {
+            case 'Identifier':
+                addProperty(node.node, callExpression.callee.object.name, callExpression.callee.property);
+                break;
+            default:
+                debugger;
+                unimplemented();
+            }
+            break;
+        default:
+            debugger;
+            unimplemented();
+        }
+    });
+});
+
+let interfaces = properties.map(scope => ({
+    scope,
+    interfaceDeclaration: scope.objects.map(object => {
+        return `${scope.name}: ${convertPropertiesToInterface(object.properties)}`;
+    })
+}));
+
+console.log(_.join(interfaces.map(x => x.interfaceDeclaration), '\n\n'));
+
+debugger;

@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/jgrosso/duckface-js#readme",
   "dependencies": {
-    "acorn": "latest"
+    "acorn": "latest",
+    "lodash": "latest"
   }
 }
