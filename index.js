@@ -8,7 +8,7 @@ const unimplemented = () => {
 };
 
 const parseTopLevelStatement = node => {
-    let result = []; 
+    let result = [];
     switch (node.type) {
     case 'FunctionDeclaration':
         return findCallExpressions(node.body);
@@ -27,7 +27,7 @@ const parseTopLevelStatement = node => {
 
 const findCallExpressions = node => {
     var result = [];
-    
+
     switch (node.type) {
     case 'BlockStatement':
         node.body.forEach(statement => {
@@ -36,31 +36,24 @@ const findCallExpressions = node => {
         return result;
     case 'ReturnStatement':
         return findCallExpressions(node.argument);
-    case 'VariableDeclaration':
-        node.declarations.forEach(declaration => {
-            result = result.concat(findCallExpressions(declaration.init));
-        });
-        return result;
     case 'CallExpression':
         return [node];
     default:
         debugger;
         unimplemented();
     }
-    
+
     return result;
 };
 
-let findName = node => {
-    switch (node.type) {
-    case 'FunctionDeclaration':
-        return node.id.name;
-    case 'VariableDeclaration':
-        return _.head(node.declarations).id.name;
-    default:
-        debugger;
-        unimplemented();
-    }
+let usedScopeNames = [];
+
+const createScopeName = () => {
+    let randomScopeName;
+    do {
+        randomScopeName = Math.floor(Math.random() * 1000000);
+    } while (_.includes(usedScopeNames, randomScopeName));
+    return randomScopeName;
 };
 
 let usedInterfaceSuffixes = [];
@@ -71,13 +64,13 @@ const convertPropertiesToInterface = properties => {
         randomSuffix = Math.floor(Math.random() * 1000000) + 1000;
     } while (_.includes(usedInterfaceSuffixes, randomSuffix));
     let randomInterfaceName = `Interface${randomSuffix}`;
-    
+
     let interfaceProperties = [];
     properties.forEach(property => {
         interfaceProperties.push(`${property}: any`);
     });
     let interfaceBody = _.join(interfaceProperties, ',\n');
-    
+
     return `
     interface ${randomInterfaceName} {
         ${interfaceBody}
@@ -90,12 +83,12 @@ let properties = [];
 const addProperty = (scope, objectName, property) => {
     if (!_.includes(properties, scope)) {
         properties.push({
-            name: findName(scope),
+            name: createScopeName(),
             node: scope,
             objects: []
         });
     }
-    
+
     let objects = _.find(properties, x => x.node == scope).objects;
     if (!_.includes(objects, objectName)) {
         objects.push({
@@ -103,7 +96,7 @@ const addProperty = (scope, objectName, property) => {
             properties: []
         });
     }
-    
+
     let objectProperties = _.find(objects, x => x.name == objectName).properties;
     if (!_.includes(objectProperties, property.name)) {
         objectProperties.push(property.name);
