@@ -1,7 +1,7 @@
 'use strict';
 
 const Acorn = require('acorn');
-const _     = require('lodash');
+const _ = require('lodash');
 
 const unimplemented = () => {
     throw new Error('TODO');
@@ -10,18 +10,18 @@ const unimplemented = () => {
 const parseTopLevelStatement = node => {
     let result = [];
     switch (node.type) {
-    case 'FunctionDeclaration':
-        return findCallExpressions(node.body);
-    case 'FunctionExpression':
-        return findCallExpressions(node.body);
-    case 'VariableDeclaration':
-        node.declarations.forEach(declaration => {
-            result = result.concat(parseTopLevelStatement(declaration.init));
-        });
-        return result;
-    default:
-        debugger;
-        unimplemented();
+        case 'FunctionDeclaration':
+            return findCallExpressions(node.body);
+        case 'FunctionExpression':
+            return findCallExpressions(node.body);
+        case 'VariableDeclaration':
+            node.declarations.forEach(declaration => {
+                result = result.concat(parseTopLevelStatement(declaration.init));
+            });
+            return result;
+        default:
+            debugger;
+            unimplemented();
     }
 };
 
@@ -29,18 +29,18 @@ const findCallExpressions = node => {
     var result = [];
 
     switch (node.type) {
-    case 'BlockStatement':
-        node.body.forEach(statement => {
-            result = result.concat(findCallExpressions(statement));
-        });
-        return result;
-    case 'ReturnStatement':
-        return findCallExpressions(node.argument);
-    case 'CallExpression':
-        return [node];
-    default:
-        debugger;
-        unimplemented();
+        case 'BlockStatement':
+            node.body.forEach(statement => {
+                result = result.concat(findCallExpressions(statement));
+            });
+            return result;
+        case 'ReturnStatement':
+            return findCallExpressions(node.argument);
+        case 'CallExpression':
+            return [node];
+        default:
+            debugger;
+            unimplemented();
     }
 
     return result;
@@ -127,19 +127,19 @@ ast.forEach(node => {
 callExpressions.forEach(node => {
     node.callExpressions.forEach(callExpression => {
         switch (callExpression.callee.type) {
-        case 'MemberExpression':
-            switch (callExpression.callee.object.type) {
-            case 'Identifier':
-                addProperty(node.node, callExpression.callee.object.name, callExpression.callee.property);
+            case 'MemberExpression':
+                switch (callExpression.callee.object.type) {
+                    case 'Identifier':
+                        addProperty(node.node, callExpression.callee.object.name, callExpression.callee.property);
+                        break;
+                    default:
+                        debugger;
+                        unimplemented();
+                }
                 break;
             default:
                 debugger;
                 unimplemented();
-            }
-            break;
-        default:
-            debugger;
-            unimplemented();
         }
     });
 });
