@@ -110,6 +110,9 @@ function x(test) {
 var x = function(test) {
     return test.toString2();
 }
+var y = function y(test) {
+    return test.toString3();
+}
 `;
 let comments = [];
 let ast = Acorn.parse(source, {
