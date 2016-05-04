@@ -22,5 +22,11 @@
   "dependencies": {
     "acorn": "latest",
     "lodash": "latest"
+  },
+  "devDependencies": {
+    "flow-bin": "latest"
+  },
+  "scripts": {
+    "flow": "flow; test $? -eq 0 -o $? -eq 2"
   }
 }

@@ -1,10 +1,22 @@
 'use strict';
 
+const DEBUG_RUN = true;
+
+const fs = require('fs');
+const childProcess = require('child_process');
+
 const Acorn = require('acorn');
 const _ = require('lodash');
 
 const unimplemented = () => {
-    throw new Error('TODO');
+    if (!DEBUG_RUN) {
+        debugger;
+        throw new Error('TODO');
+    }
+};
+
+const isFunctionDeclaration = node => {
+    return parseTopLevelStatement(node) !== null;
 };
 
 const parseTopLevelStatement = node => {
@@ -20,8 +32,8 @@ const parseTopLevelStatement = node => {
             });
             return result;
         default:
-            debugger;
             unimplemented();
+            return null;
     }
 };
 
@@ -39,7 +51,6 @@ const findCallExpressions = node => {
         case 'CallExpression':
             return [node];
         default:
-            debugger;
             unimplemented();
     }
 
@@ -47,7 +58,6 @@ const findCallExpressions = node => {
 };
 
 let usedScopeNames = [];
-
 const createScopeName = () => {
     let randomScopeName;
     do {
@@ -57,8 +67,7 @@ const createScopeName = () => {
 };
 
 let usedInterfaceSuffixes = [];
-
-const convertPropertiesToInterface = properties => {
+const convertPropertiesToInterface = (parameterName, properties) => {
     let randomSuffix;
     do {
         randomSuffix = Math.floor(Math.random() * 1000000) + 1000;
@@ -71,15 +80,31 @@ const convertPropertiesToInterface = properties => {
     });
     let interfaceBody = _.join(interfaceProperties, ',\n');
 
-    return `
-    interface ${randomInterfaceName} {
-        ${interfaceBody}
+    return {
+        declaration: `
+            interface ${randomInterfaceName} {
+                ${interfaceBody}
+            }
+        `,
+        name: randomInterfaceName,
+        parameterName
+    };
+};
+
+const findFunction = node => {
+    switch (node.type) {
+        case 'FunctionExpression':
+            return node;
+        case 'FunctionDeclaration':
+            return node;
+        case 'VariableDeclaration':
+            return node.declarations[0].init;
+        default:
+            unimplemented();
     }
-    `;
 };
 
 let properties = [];
-
 const addProperty = (scope, objectName, property) => {
     if (!_.includes(properties, scope)) {
         properties.push({
@@ -103,21 +128,29 @@ const addProperty = (scope, objectName, property) => {
     }
 };
 
-const source = `
-function x(test) {
-    return test.toString();
-}
-var x = function(test) {
-    return test.toString2();
-}
-var y = function y(test) {
-    return test.toString3();
-}
+let source = `
+    function x(test) {
+        return test.toString();
+    };
+    var x = function(test) {
+        return test.toString2();
+    };
+    var y = function y(test) {
+        return toString(test.test);
+    };
+    var toString = function (test) {
+        return test.toString2;
+    };
+    y({
+        test: {
+            toString3: () => "1"
+        }
+    })();
 `;
 let comments = [];
 let ast = Acorn.parse(source, {
     onComment: comments
-}).body;
+}).body.filter(isFunctionDeclaration);
 
 let callExpressions = [];
 ast.forEach(node => {
@@ -136,24 +169,49 @@ callExpressions.forEach(node => {
                         addProperty(node.node, callExpression.callee.object.name, callExpression.callee.property);
                         break;
                     default:
-                        debugger;
                         unimplemented();
                 }
                 break;
             default:
-                debugger;
                 unimplemented();
         }
     });
 });
 
-let interfaces = properties.map(scope => ({
-    scope,
-    interfaceDeclaration: scope.objects.map(object => {
-        return `${scope.name}: ${convertPropertiesToInterface(object.properties)}`;
-    })
-}));
+let interfaces = properties.map(scope => {
+    return scope.objects.map(x => ({
+        scope,
+        interfaceDeclaration: convertPropertiesToInterface(x.name, x.properties)
+    }));
+});
 
-console.log(_.join(interfaces.map(x => x.interfaceDeclaration), '\n\n'));
+let newCharactersLength = 0;
+properties.forEach(scope => {
+    let interfaceAnnotation = _.find(interfaces, x => x[0].scope == scope)[0].interfaceDeclaration;
+    let interfaceAnnotationText = `: ${interfaceAnnotation.name}`;
+    let parameterEnd = _.find(findFunction(scope.node).params, x => x.name == interfaceAnnotation.parameterName).end + newCharactersLength;
+    source = source.slice(0, parameterEnd) + interfaceAnnotationText + source.slice(parameterEnd);
+    newCharactersLength += interfaceAnnotationText.length;
+});
 
-debugger;
+source += '\n' + _.join(interfaces.map(x => x[0].interfaceDeclaration.declaration), '\n');
+source = `
+    // @flow
+    ${source}
+`;
+
+const outputPath = 'bin/convertedSource.js';
+fs.unlink(outputPath);
+fs.writeFile(outputPath, source, err => {
+    if (err) {
+        return console.error(err);
+    }
+    
+    childProcess.exec('cat bin/convertedSource.js | node_modules/.bin/flow check-contents', (error, stdout, stderr) => {
+        console.log(stdout);
+        console.error(stderr);
+        if (error !== null) {
+            console.error(`exec error: ${error}`);
+        }
+    });
+});
